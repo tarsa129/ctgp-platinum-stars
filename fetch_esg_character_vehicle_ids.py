@@ -24,6 +24,7 @@ def main():
 
         esg_driver_vehicle_id["vehicleId"] = ghost_info["vehicleId"]
         esg_driver_vehicle_id["driverId"] = ghost_info["driverId"]
+        esg_driver_vehicle_id["trackName"] = ghost_info["trackName"]
         esg_driver_vehicle_ids[ghost_info["trackId"]] = esg_driver_vehicle_id
 
     esg_driver_vehicle_ids_js = f"const esgDriverVehicleIds = {json.dumps(esg_driver_vehicle_ids, indent=2)};"

@@ -3,11 +3,18 @@ const chadsoftPlayerPageLinkRegex = /^https:\/\/(?:www\.)?chadsoft\.co\.uk\/time
 
 let apiCallSavedPromises = new Map();
 
+function setPlatinumStarMessages(platinumStarMessages)
+{
+  document.getElementById("platinum-star-count-message").innerText = platinumStarMessages.countMessage;
+  document.getElementById("platinum-star-has-on-message").innerText = platinumStarMessages.hasOnMessage;
+  document.getElementById("platinum-star-not-on-message").innerText = platinumStarMessages.notOnMessage;
+}
+
 function createGetErrorMessage(status, statusText)
 {
   let errorMessage;
 
-  if (status === 404) {
+  if (status === 404 || status === 0) {
     errorMessage = `Chadsoft player page does not exist!`;
   } else {
     errorMessage = `Error occurred with status code ${status}: ${statusText}.`;
@@ -56,7 +63,11 @@ async function fetchPlayerPageAndCountNumPlatinumStars(chadsoftPlayerPageLink) {
   const matchContents = chadsoftPlayerPageLink.match(chadsoftPlayerPageLinkRegex);
   console.log("matchContents:", matchContents);
   if (matchContents === null || matchContents.length !== 2) {
-    return "Invalid chadsoft player page link!";
+    return {
+      countMessage: "Invalid chadsoft player page link!",
+      hasOnMessage: "",
+      notOnMessage: ""
+    }
   }
 
   let playerPageUrl = `https://tt.chadsoft.co.uk/players/${matchContents[1]}.json`
@@ -64,10 +75,18 @@ async function fetchPlayerPageAndCountNumPlatinumStars(chadsoftPlayerPageLink) {
   let playerPageData;
 
   try {
-    document.getElementById("platinum-star-message").innerText = "Waiting for Chadsoft...";
+    setPlatinumStarMessages({
+      countMessage: "Waiting for Chadsoft...",
+      hasOnMessage: "",
+      notOnMessage: ""
+    });
     playerPageData = await requestsGetPromise(playerPageUrl);
   } catch (e) {
-    return e.message;
+    return {
+      countMessage: e.message,
+      hasOnMessage: "",
+      notOnMessage: ""
+    }
   }
 
   let ghosts = playerPageData["ghosts"]
@@ -75,6 +94,7 @@ async function fetchPlayerPageAndCountNumPlatinumStars(chadsoftPlayerPageLink) {
     return "Chadsoft player page has no ghosts!";
   }
   let platinumStarTrackNames = new Set();
+  let platinumStarHasTrackIds = new Set();
 
   console.log(ghosts);
 
@@ -94,6 +114,7 @@ async function fetchPlayerPageAndCountNumPlatinumStars(chadsoftPlayerPageLink) {
 
             if (esgDriverId === ghostDriverId && esgVehicleId === ghostVehicleId) {
               platinumStarTrackNames.add(ghost["trackName"]);
+              platinumStarHasTrackIds.add(trackId);
             }
           } else {
             console.log(`No esgDriverVehicleId for ghost on ${ghost["trackName"]}: ${ghost["_links"]["item"]["href"]}, time: ${ghost["finishTimeSimple"]}, esgDriverVehicleId: ${esgDriverVehicleId}`);
@@ -105,16 +126,23 @@ async function fetchPlayerPageAndCountNumPlatinumStars(chadsoftPlayerPageLink) {
     return `Something went wrong, please contact the developer! Error message: ${e.message}.`;
   }
 
+  let allCurrentTrackIds = new Set(Object.keys(esgDriverVehicleIds));
+  let platinumStarNotHasTrackIds = new Set([...allCurrentTrackIds].filter((x) => !platinumStarHasTrackIds.has(x)));
+  let platinumStarNotHasTrackNamesSorted = [...platinumStarNotHasTrackIds].map((trackId) => esgDriverVehicleIds[trackId]["trackName"]).sort();
   let platinumStarTrackNamesSorted = Array.from(platinumStarTrackNames).sort();
 
-  return `You (${playerPageData['miiName']}) have ${platinumStarTrackNamesSorted.length} Platinum Star${platinumStarTrackNamesSorted.length !== 1 ? "s" : ""}.` + ( platinumStarTrackNamesSorted.length !== 0 ? ` You have Platinum Stars on ${listFormatter.format(platinumStarTrackNamesSorted)}.` : "");
+  return {
+    countMessage: `You (${playerPageData['miiName']}) have ${platinumStarTrackNamesSorted.length} Platinum Star${platinumStarTrackNamesSorted.length !== 1 ? "s" : ""}.`,
+    hasOnMessage: (platinumStarTrackNamesSorted.length !== 0 ? `You have Platinum Stars on ${listFormatter.format(platinumStarTrackNamesSorted)}.` : ""),
+    notOnMessage: (platinumStarNotHasTrackNamesSorted.length !== 0 ? `You do not have Platinum Stars on ${listFormatter.format(platinumStarNotHasTrackNamesSorted)}.` : "")
+  }
 }
 
 async function onSubmit(event) {
   event.preventDefault();
   event.stopPropagation();
   let chadsoftPlayerPageLink = event.target.elements["player-page"].value;
-  let platinumStarMessage = await fetchPlayerPageAndCountNumPlatinumStars(chadsoftPlayerPageLink);
-  document.getElementById("platinum-star-message").innerText = platinumStarMessage;
+  let platinumStarMessages = await fetchPlayerPageAndCountNumPlatinumStars(chadsoftPlayerPageLink);
+  setPlatinumStarMessages(platinumStarMessages);
   return false;
 }
