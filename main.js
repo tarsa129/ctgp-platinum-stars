@@ -91,12 +91,20 @@ async function fetchPlayerPageAndCountNumPlatinumStars(chadsoftPlayerPageLink) {
 
   let ghosts = playerPageData["ghosts"]
   if (ghosts === undefined || ghosts === null) {
-    return "Chadsoft player page has no ghosts!";
+    return {
+      countMessage: "Chadsoft player page has no ghosts!",
+      hasOnMessage: "",
+      notOnMessage: ""
+    };
   }
+  if (playerPageData["ghostCount"] !== ghosts.length) {
+    document.getElementById("platinum-star-warning-message").innerText = "Warning: Not all ghosts could be downloaded from Chadsoft. This is likely because you have connected to the Chadsoft API too many times (e.g. many uses of this website, auto-tt-recorder, or viewing leaderboards on chadsoft.co.uk)";
+  }
+
   let platinumStarTrackNames = new Set();
   let platinumStarHasTrackIds = new Set();
 
-  console.log(ghosts);
+  console.log(playerPageData);
 
   try {
     for (ghost of ghosts) {
@@ -141,6 +149,8 @@ async function fetchPlayerPageAndCountNumPlatinumStars(chadsoftPlayerPageLink) {
 async function onSubmit(event) {
   event.preventDefault();
   event.stopPropagation();
+  document.getElementById("platinum-star-warning-message").innerText = "";
+
   let chadsoftPlayerPageLink = event.target.elements["player-page"].value;
   let platinumStarMessages = await fetchPlayerPageAndCountNumPlatinumStars(chadsoftPlayerPageLink);
   setPlatinumStarMessages(platinumStarMessages);
