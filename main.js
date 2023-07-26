@@ -107,7 +107,7 @@ async function fetchPlayerPageAndCountNumPlatinumStars(chadsoftPlayerPageLink) {
 
   let platinumStarTrackNamesSorted = Array.from(platinumStarTrackNames).sort();
 
-  return `You (${playerPageData['miiName']}) have ${platinumStarTrackNamesSorted.length} Platinum Star${platinumStarTrackNamesSorted.length !== 1 ? "s" : ""}.` + ( platinumStarTrackNamesSorted.length !== 0 ? ` You have platinum stars on ${listFormatter.format(platinumStarTrackNamesSorted)}.` : "");
+  return `You (${playerPageData['miiName']}) have ${platinumStarTrackNamesSorted.length} Platinum Star${platinumStarTrackNamesSorted.length !== 1 ? "s" : ""}.` + ( platinumStarTrackNamesSorted.length !== 0 ? ` You have Platinum Stars on ${listFormatter.format(platinumStarTrackNamesSorted)}.` : "");
 }
 
 async function onSubmit(event) {
