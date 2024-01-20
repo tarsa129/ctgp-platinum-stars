@@ -5,5 +5,11 @@
 p {
 	font-family: "CTMKF", "Times", serif;
 }
+
+table {
+	border: 3px solid;
 }
-	
+
+th, td {
+	border: 1px solid;
+}

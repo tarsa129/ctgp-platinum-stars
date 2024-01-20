@@ -3,11 +3,32 @@ const chadsoftPlayerPageLinkRegex = /^https:\/\/(?:www\.)?chadsoft\.co\.uk\/time
 
 let apiCallSavedPromises = new Map();
 
-function setPlatinumStarMessages(platinumStarMessages)
+class StarData {
+  constructor(bronze, silver, superSilver, gold, platinum){
+    this.bronze = bronze;
+    this.silver = silver;
+    this.superSilver = superSilver;
+    this.gold = gold;
+    this.platinum = platinum;
+  }
+
+  combineData(bronze, silver, superSilver, gold, platinum){
+    this.bronze |= bronze;
+    this.silver |= silver;
+    this.superSilver |= superSilver;
+    this.gold |= gold;
+    this.platinum |= platinum;
+  }
+
+  getArray(){
+    return [this.bronze, this.silver, this.superSilver, this.gold, this.platinum];
+  }
+}
+
+function setStarMessages(silverStarMessages)
 {
-  document.getElementById("platinum-star-count-message").innerText = platinumStarMessages.countMessage;
-  document.getElementById("platinum-star-has-on-message").innerText = platinumStarMessages.hasOnMessage;
-  document.getElementById("platinum-star-not-on-message").innerText = platinumStarMessages.notOnMessage;
+  document.getElementById("star-count-message").innerText = silverStarMessages.countMessage;
+  document.getElementById("star-count-table").innerHTML = silverStarMessages.tableString;
 }
 
 function createGetErrorMessage(status, statusText)
@@ -57,16 +78,16 @@ async function requestsGetPromise(urlStr)
     return promise;
 }
 
+
 const listFormatter = new Intl.ListFormat("en", {style: "long", type: "conjunction"});
 
-async function fetchPlayerPageAndCountNumPlatinumStars(chadsoftPlayerPageLink) {
+async function fetchPlayerPageAndCountNumStars(chadsoftPlayerPageLink) {
   const matchContents = chadsoftPlayerPageLink.match(chadsoftPlayerPageLinkRegex);
   console.log("matchContents:", matchContents);
   if (matchContents === null || matchContents.length !== 2) {
     return {
       countMessage: "Invalid chadsoft player page link!",
-      hasOnMessage: "",
-      notOnMessage: ""
+      tableString: ""
     }
   }
 
@@ -75,17 +96,15 @@ async function fetchPlayerPageAndCountNumPlatinumStars(chadsoftPlayerPageLink) {
   let playerPageData;
 
   try {
-    setPlatinumStarMessages({
+    setStarMessages({
       countMessage: "Waiting for Chadsoft...",
-      hasOnMessage: "",
-      notOnMessage: ""
+      tableString: ""
     });
     playerPageData = await requestsGetPromise(playerPageUrl);
   } catch (e) {
     return {
       countMessage: e.message,
-      hasOnMessage: "",
-      notOnMessage: ""
+      tableString: ""
     }
   }
 
@@ -93,66 +112,107 @@ async function fetchPlayerPageAndCountNumPlatinumStars(chadsoftPlayerPageLink) {
   if (ghosts === undefined || ghosts === null) {
     return {
       countMessage: "Chadsoft player page has no ghosts!",
-      hasOnMessage: "",
-      notOnMessage: ""
+      tableString: ""
     };
   }
   if (playerPageData["ghostCount"] !== ghosts.length) {
-    document.getElementById("platinum-star-warning-message").innerText = "Warning: Not all ghosts could be downloaded from Chadsoft. This is likely because you have connected to the Chadsoft API too many times (e.g. many uses of this website, auto-tt-recorder, or viewing leaderboards on chadsoft.co.uk)";
+    document.getElementById("star-warning-message").innerText = "Warning: Not all ghosts could be downloaded from Chadsoft. This is likely because you have connected to the Chadsoft API too many times (e.g. many uses of this website, auto-tt-recorder, or viewing leaderboards on chadsoft.co.uk)";
   }
 
-  let platinumStarTrackNames = new Set();
-  let platinumStarHasTrackIds = new Set();
-
+  let trackData = new Map()
+  for (const trackName of trackNames){
+    trackData.set(trackName, new StarData(false, false, false, false, false));
+  }
   console.log(playerPageData);
 
   try {
     for (ghost of ghosts) {
       let stars = ghost["stars"];
-      if (stars) {
-        let hasGoldStar = stars["gold"];
-        if (hasGoldStar) {
-          let trackId = ghost["trackId"];
-          let esgDriverVehicleId = esgDriverVehicleIds[trackId];
-          if (esgDriverVehicleId) {
-            esgDriverId = esgDriverVehicleId["driverId"];
-            esgVehicleId = esgDriverVehicleId["vehicleId"];
-            ghostDriverId = ghost["driverId"];
-            ghostVehicleId = ghost["vehicleId"];
+      if (!stars) {
+        continue;
+      }
 
-            if (esgDriverId === ghostDriverId && esgVehicleId === ghostVehicleId) {
-              platinumStarTrackNames.add(ghost["trackName"]);
-              platinumStarHasTrackIds.add(trackId);
-            }
-          } else {
-            console.log(`No esgDriverVehicleId for ghost on ${ghost["trackName"]}: ${ghost["_links"]["item"]["href"]}, time: ${ghost["finishTimeSimple"]}, esgDriverVehicleId: ${esgDriverVehicleId}`);
+      let trackId = ghost["trackId"];
+      let trackName = ghost["trackName"];
+
+      console.log(trackName);
+
+      let hasBronzeStar = stars["bronze"];
+      let hasSilverStar = stars["silver"];
+      let hasSuperSilverStar = false;
+      if (hasSilverStar) {
+        let esgDriverVehicleId = easysgDriverVehicleIds[trackId];
+        if (esgDriverVehicleId){
+          console.log(esgDriverVehicleId);
+          esgDriverId = esgDriverVehicleId["driverId"];
+          esgVehicleId = esgDriverVehicleId["vehicleId"];
+          ghostDriverId = ghost["driverId"];
+          ghostVehicleId = ghost["vehicleId"];
+
+          console.log( `${esgDriverId} ${esgVehicleId} ${ghostDriverId} ${ghostVehicleId}`);
+
+          if (esgDriverId === ghostDriverId && esgVehicleId === ghostVehicleId) {
+            hasSuperSilverStar = true;
           }
+        } else {
+          console.log(`No esgDriverVehicleId for ghost on ${ghost["trackName"]}: ${ghost["_links"]["item"]["href"]}, time: ${ghost["finishTimeSimple"]}, esgDriverVehicleId: ${esgDriverVehicleId}`);
         }
       }
+      let hasGoldStar = stars["gold"];
+      let hasPlatinumStar = false;
+      if (hasGoldStar) {
+        let esgDriverVehicleId = expertsgDriverVehicleIds[trackId];
+        if (esgDriverVehicleId) {
+          esgDriverId = esgDriverVehicleId["driverId"];
+          esgVehicleId = esgDriverVehicleId["vehicleId"];
+          ghostDriverId = ghost["driverId"];
+          ghostVehicleId = ghost["vehicleId"];
+
+          if (esgDriverId === ghostDriverId && esgVehicleId === ghostVehicleId) {
+            hasPlatinumStar = true;
+          }
+        } else {
+          console.log(`No esgDriverVehicleId for ghost on ${ghost["trackName"]}: ${ghost["_links"]["item"]["href"]}, time: ${ghost["finishTimeSimple"]}, esgDriverVehicleId: ${esgDriverVehicleId}`);
+        }
+      }
+
+
+      trackData.get(trackName).combineData(hasBronzeStar, hasSilverStar, hasSuperSilverStar, hasGoldStar, hasPlatinumStar);
+
     }
   } catch (e) {
     return `Something went wrong, please contact the developer! Error message: ${e.message}.`;
   }
 
-  let allCurrentTrackIds = new Set(Object.keys(esgDriverVehicleIds));
-  let platinumStarNotHasTrackIds = new Set([...allCurrentTrackIds].filter((x) => !platinumStarHasTrackIds.has(x)));
-  let platinumStarNotHasTrackNamesSorted = [...platinumStarNotHasTrackIds].map((trackId) => esgDriverVehicleIds[trackId]["trackName"]).sort();
-  let platinumStarTrackNamesSorted = Array.from(platinumStarTrackNames).sort();
+  console.log(trackData);
+
+  let starCounts = [0, 0, 0, 0, 0];
+  let tableBody = "";
+
+  for (const [trackName, starData] of trackData) {
+    tableBody += `<tr><td>${trackName}</td><td>${starData.bronze ? "x" : ""}</td><td>${starData.silver ? "x" : ""}</td><td>${starData.superSilver ? "x" : ""}</td><td>${starData.gold ? "x" : ""}</td><td>${starData.platinum ? "x" : ""}</td></tr>`
+    trackStarArray = starData.getArray()
+    trackStarArray.forEach( (element, index) => { if (element) {starCounts[index] += 1}} );
+  }
+
+  let tableHeader = "<tr><th>Track Name</th><th>Bronze</th><th>Silver</th><th>Super Silver</th><th>Gold</th><th>Platinum</th></tr>";
+  let tableString = "<table>" + tableHeader + tableBody + "</table>"
+
+  console.log(starCounts);
 
   return {
-    countMessage: `You (${playerPageData['miiName']}) have ${platinumStarTrackNamesSorted.length} Platinum Star${platinumStarTrackNamesSorted.length !== 1 ? "s" : ""}.`,
-    hasOnMessage: (platinumStarTrackNamesSorted.length !== 0 ? `You have Platinum Stars on ${listFormatter.format(platinumStarTrackNamesSorted)}.` : ""),
-    notOnMessage: (platinumStarNotHasTrackNamesSorted.length !== 0 ? `You do not have Platinum Stars on ${listFormatter.format(platinumStarNotHasTrackNamesSorted)}.` : "")
+    countMessage: `You (${playerPageData['miiName']}) have ${starCounts[0]} bronze, ${starCounts[1]} silver, ${starCounts[2]} super silver, ${starCounts[3]} gold, and ${starCounts[4]} platinum stars`,
+    tableString: tableString
   }
 }
 
 async function onSubmit(event) {
   event.preventDefault();
   event.stopPropagation();
-  document.getElementById("platinum-star-warning-message").innerText = "";
+  document.getElementById("star-warning-message").innerText = "";
 
   let chadsoftPlayerPageLink = event.target.elements["player-page"].value;
-  let platinumStarMessages = await fetchPlayerPageAndCountNumPlatinumStars(chadsoftPlayerPageLink);
-  setPlatinumStarMessages(platinumStarMessages);
+  let silverStarMessages = await fetchPlayerPageAndCountNumStars(chadsoftPlayerPageLink);
+  setStarMessages(silverStarMessages);
   return false;
 }
