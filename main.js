@@ -135,6 +135,10 @@ async function fetchPlayerPageAndCountNumStars(chadsoftPlayerPageLink) {
       let trackId = ghost["trackId"];
       let trackName = ghost["trackName"];
 
+      if (!trackNames.includes(trackName)) {
+        continue;
+      }
+
       console.log(trackName);
 
       let hasBronzeStar = stars["bronze"];
